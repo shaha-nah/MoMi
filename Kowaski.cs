@@ -75,5 +75,33 @@ class Kowalski
 		int[,] structuralSimilarityMatrix = structuralSimilarity.ComputeSimiarityMatrix();
 		
 		// calculate semantic similarity
+		SemanticSimilarity semanticSimilarity = new SemanticSimilarity(blueprints);
+		double[,] semanticSimilarityMatrix = semanticSimilarity.ComputeSimilarityMatrix();
+		
+		// weighted sum to get similarity
+		double[,] similarityMatrix = new double[methodList.Count, methodList.Count];
+		for (int i = 0; i < methodList.Count; i++)
+		{
+			for (int j = 0; j < methodList.Count; j++)
+			{
+				similarityMatrix[i, j] = (0.4 * structuralSimilarityMatrix[i, j]) + (0.6 * semanticSimilarityMatrix[i, j]);	
+			}
+		}
+		
+		// generate clusters
+		Dbscan dbscan = new Dbscan(similarityMatrix);
+		List<List<int>> clusters = dbscan.GenerateClusters();
+		
+		foreach (var cluster in clusters)
+		{
+			Console.WriteLine("Cluster:");
+			foreach (var index in cluster)
+			{
+				Console.WriteLine(index);
+				blueprints[index].PrintBlueprint();
+
+			}
+			Console.WriteLine();
+		}
 	}
 }

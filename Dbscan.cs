@@ -2,42 +2,30 @@ namespace MoMi;
 class Dbscan
 {
 	private double[,] similarityMatrix;
-	private List<Blueprint> blueprints;
 	
-	public Dbscan(double[,] similarityMatrix, List<Blueprint> blueprints)
+	public Dbscan(double[,] similarityMatrix)
 	{
 		this.similarityMatrix = similarityMatrix;
-		this.blueprints = blueprints;
 	}
 	
-	public void GenerateClusters()
+	public List<List<int>> GenerateClusters()
 	{
 		int minPts = 2;
 		double eps = 0.5;
 
 		List<List<int>> clusters = DBSCAN(similarityMatrix, minPts, eps);
 
-		foreach (var cluster in clusters)
-		{
-			Console.WriteLine("Cluster:");
-			foreach (var index in cluster)
-			{
-				Console.WriteLine(index);
-				blueprints[index].PrintBlueprint();
-
-			}
-			Console.WriteLine();
-		}
+		return clusters;
 	}
 
 	private List<List<int>> DBSCAN(double[,] similarityMatrix, int minPts, double eps)
 	{
-		int numClasses = similarityMatrix.GetLength(0);
+		int numMethods = similarityMatrix.GetLength(0);
 
 		List<int> visited = new List<int>();
 		List<List<int>> clusters = new List<List<int>>();
 
-		for (int i = 0; i < numClasses; i++)
+		for (int i = 0; i < numMethods; i++)
 		{
 			if (visited.Contains(i)) continue;
 
@@ -56,38 +44,38 @@ class Dbscan
 
 			while (neighbors.Count > 0)
 			{
-				int currentClass = neighbors[0];
+				int currentMethod = neighbors[0];
 				neighbors.RemoveAt(0);
 
-				if (!visited.Contains(currentClass))
+				if (!visited.Contains(currentMethod))
 				{
-					List<int> currentClassNeighbors = GetNeighbors(currentClass, similarityMatrix, eps);
+					List<int> currentMethodNeighbors = GetNeighbors(currentMethod, similarityMatrix, eps);
 
-					if (currentClassNeighbors.Count >= minPts)
+					if (currentMethodNeighbors.Count >= minPts)
 					{
-						neighbors.AddRange(currentClassNeighbors);
+						neighbors.AddRange(currentMethodNeighbors);
 					}
 				}
 
-				if (!cluster.Contains(currentClass))
+				if (!cluster.Contains(currentMethod))
 				{
-					cluster.Add(currentClass);
+					cluster.Add(currentMethod);
 				}
 
-				visited.Add(currentClass);
+				visited.Add(currentMethod);
 			}
 		}
 
 		return clusters;
 	}
 
-	private List<int> GetNeighbors(int classIndex, double[,] similarityMatrix, double eps)
+	private List<int> GetNeighbors(int methodIndex, double[,] similarityMatrix, double eps)
 	{
 		List<int> neighbors = new List<int>();
 
 		for (int i = 0; i < similarityMatrix.GetLength(0); i++)
 		{
-			if (similarityMatrix[classIndex, i] >= eps)
+			if (similarityMatrix[methodIndex, i] >= eps)
 			{
 				neighbors.Add(i);
 			}

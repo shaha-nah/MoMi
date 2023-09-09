@@ -16,11 +16,7 @@ class Blueprint
 	
 	public void PrintBlueprint()
 	{
-		Console.WriteLine($"Method: {this.methodName}");
-		Console.WriteLine($"Class: {this.className}");
-		Console.WriteLine($"Invocations: {this.methodCalls}");
-		Console.WriteLine($"Variables: {this.variableNames}");
-		Console.WriteLine("===========================================");
+		Console.WriteLine($"{this.methodName} - {this.className} - {this.methodCalls} - {this.variableNames}");
 	}
 	
 	public void printMethodDependency()
