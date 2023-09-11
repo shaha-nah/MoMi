@@ -112,22 +112,23 @@ class Kowalski
 		{
 			for (int j = 0; j < methodCount; j++)
 			{
-				normalizedSimilarityMatrix[i, j] = similarityMatrix[i, j] / vectorLengths[i];
+				normalizedSimilarityMatrix[i, j] = Math.Round(similarityMatrix[i, j] / vectorLengths[i], 3);
 			}
 		}
 		
-		// for (int i = 0; i < methodCount; i++)
-		// {
-		// 	for (int j = 0; j < methodCount; j++)
-		// 	{
-		// 		Console.Write(similarityMatrix[i, j]);
-		// 	}
-		// 	Console.WriteLine();
-		// }
+		// generate distance matrix
+		double[,] distanceMatrix = new double[methodCount, methodCount];
+		for (int i = 0; i < methodCount; i++)
+		{
+			for (int j = 0; j < methodCount; j++)
+			{
+				distanceMatrix[i, j] = 1 - normalizedSimilarityMatrix[i, j];
+			}
+		}
 		
 		// generate clusters
 		Console.WriteLine("Clustering");
-		Dbscan dbscan = new Dbscan(normalizedSimilarityMatrix);
+		Dbscan dbscan = new Dbscan(distanceMatrix);
 		List<List<int>> clusters = dbscan.GenerateClusters();
 		
 		JObject clusterJson = new JObject();

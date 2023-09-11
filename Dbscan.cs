@@ -1,26 +1,26 @@
 namespace MoMi;
 class Dbscan
 {
-	private double[,] similarityMatrix;
+	private double[,] distanceMatrix;
 	
-	public Dbscan(double[,] similarityMatrix)
+	public Dbscan(double[,] distanceMatrix)
 	{
-		this.similarityMatrix = similarityMatrix;
+		this.distanceMatrix = distanceMatrix;
 	}
 	
 	public List<List<int>> GenerateClusters()
 	{
-		int minPts = 2;
-		double eps = 0.5;
+		int minPts = 3;
+		double eps = 0.88;
 
-		List<List<int>> clusters = DBSCAN(similarityMatrix, minPts, eps);
+		List<List<int>> clusters = DBSCAN(distanceMatrix, minPts, eps);
 
 		return clusters;
 	}
 
-	private List<List<int>> DBSCAN(double[,] similarityMatrix, int minPts, double eps)
+	private List<List<int>> DBSCAN(double[,] distanceMatrix, int minPts, double eps)
 	{
-		int numMethods = similarityMatrix.GetLength(0);
+		int numMethods = distanceMatrix.GetLength(0);
 
 		List<int> visited = new List<int>();
 		List<List<int>> clusters = new List<List<int>>();
@@ -29,7 +29,7 @@ class Dbscan
 		{
 			if (visited.Contains(i)) continue;
 
-			List<int> neighbors = GetNeighbors(i, similarityMatrix, eps);
+			List<int> neighbors = GetNeighbors(i, distanceMatrix, eps);
 
 			if (neighbors.Count < minPts)
 			{
@@ -49,7 +49,7 @@ class Dbscan
 
 				if (!visited.Contains(currentMethod))
 				{
-					List<int> currentMethodNeighbors = GetNeighbors(currentMethod, similarityMatrix, eps);
+					List<int> currentMethodNeighbors = GetNeighbors(currentMethod, distanceMatrix, eps);
 
 					if (currentMethodNeighbors.Count >= minPts)
 					{
@@ -69,13 +69,13 @@ class Dbscan
 		return clusters;
 	}
 
-	private List<int> GetNeighbors(int methodIndex, double[,] similarityMatrix, double eps)
+	private List<int> GetNeighbors(int methodIndex, double[,] distanceMatrix, double eps)
 	{
 		List<int> neighbors = new List<int>();
 
-		for (int i = 0; i < similarityMatrix.GetLength(0); i++)
+		for (int i = 0; i < distanceMatrix.GetLength(0); i++)
 		{
-			if (similarityMatrix[methodIndex, i] >= eps)
+			if (distanceMatrix[methodIndex, i] >= eps)
 			{
 				neighbors.Add(i);
 			}
