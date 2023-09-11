@@ -73,6 +73,7 @@ class Kowalski
 			pair.Value.RemoveAll(value => !methodDependency.ContainsKey(value));
 		}
 		
+		int methodCount = methodList.Count;
 		// compute structural similarity matrix
 		Console.WriteLine("Computing structural similarity matrix");
 		StructuralSimilarity structuralSimilarity = new StructuralSimilarity(methodList, methodDependency);
@@ -84,17 +85,49 @@ class Kowalski
 		double[,] semanticSimilarityMatrix = semanticSimilarity.ComputeSimilarityMatrix();
 		
 		// weighted sum to get similarity
-		double[,] similarityMatrix = new double[methodList.Count, methodList.Count];
-		for (int i = 0; i < methodList.Count; i++)
+		double[,] similarityMatrix = new double[methodCount, methodCount];
+		for (int i = 0; i < methodCount; i++)
 		{
-			for (int j = 0; j < methodList.Count; j++)
+			for (int j = 0; j < methodCount; j++)
 			{
-				similarityMatrix[i, j] = (0.4 * structuralSimilarityMatrix[i, j]) + (0.6 * semanticSimilarityMatrix[i, j]);	
+				similarityMatrix[i, j] = (0.1 * structuralSimilarityMatrix[i, j]) + (0.9 * semanticSimilarityMatrix[i, j]);	
 			}
 		}
 		
+		// normalize similarity matrix
+		double[,] normalizedSimilarityMatrix = new double[methodCount, methodCount];
+		double[] vectorLengths = new double[methodCount];
+		for (int i = 0; i < methodCount; i++)
+		{
+			double vectorLength = 0;
+			
+			for (int j = 0; j < methodCount; j++)
+			{
+				vectorLength += Math.Pow(similarityMatrix[i, j], 2);
+			}
+			vectorLengths[i] = Math.Sqrt(vectorLength);
+		}
+		
+		for (int i = 0; i < methodCount; i++)
+		{
+			for (int j = 0; j < methodCount; j++)
+			{
+				normalizedSimilarityMatrix[i, j] = similarityMatrix[i, j] / vectorLengths[i];
+			}
+		}
+		
+		// for (int i = 0; i < methodCount; i++)
+		// {
+		// 	for (int j = 0; j < methodCount; j++)
+		// 	{
+		// 		Console.Write(similarityMatrix[i, j]);
+		// 	}
+		// 	Console.WriteLine();
+		// }
+		
 		// generate clusters
-		Dbscan dbscan = new Dbscan(similarityMatrix);
+		Console.WriteLine("Clustering");
+		Dbscan dbscan = new Dbscan(normalizedSimilarityMatrix);
 		List<List<int>> clusters = dbscan.GenerateClusters();
 		
 		JObject clusterJson = new JObject();
