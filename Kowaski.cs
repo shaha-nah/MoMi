@@ -1,6 +1,8 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace MoMi;
 class Kowalski
@@ -92,16 +94,20 @@ class Kowalski
 		Dbscan dbscan = new Dbscan(similarityMatrix);
 		List<List<int>> clusters = dbscan.GenerateClusters();
 		
+		JObject clusterJson = new JObject();
+		int clusterIndex = 0;
+		
 		foreach (var cluster in clusters)
 		{
-			Console.WriteLine("Cluster:");
+			Cluster clusterItems = new Cluster();
+			
 			foreach (var index in cluster)
 			{
-				Console.WriteLine(index);
-				blueprints[index].PrintBlueprint();
-
+				clusterItems.Items.Add(blueprints[index]);
 			}
-			Console.WriteLine();
+			clusterJson.Add(clusterIndex.ToString(), JToken.FromObject(clusterItems));
+			clusterIndex++;
 		}
+		File.WriteAllText("./clusters.json", clusterJson.ToString());
 	}
 }
