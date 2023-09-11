@@ -11,45 +11,45 @@ class SemanticSimilarity
 	
 	public double[,] ComputeSimilarityMatrix()
 	{
+		MLContext mlContext = new MLContext();
+
+		IDataView dataview = mlContext.Data.LoadFromEnumerable(this.blueprints);
+
+		Microsoft.ML.Data.EstimatorChain<Microsoft.ML.Data.ColumnConcatenatingTransformer> pipeline = mlContext.Transforms.Text.NormalizeText("NormalizedMethodName", "methodName")
+				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedMethodName", "NormalizedMethodName"))
+				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedMethodName"))
+				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedMethodName"))
+				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedMethodName"))
+				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("MethodFeatures", "TokenizedMethodName", numberOfTopics: 2))
+				.Append(mlContext.Transforms.Text.NormalizeText("NormalizedClassName", "className"))
+				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedClassName", "NormalizedClassName"))
+				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedClassName"))
+				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedClassName"))
+				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedClassName"))
+				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("ClassFeatures", "TokenizedClassName", numberOfTopics: 2))
+				.Append(mlContext.Transforms.Text.NormalizeText("NormalizedMethodCalls", "methodCalls"))
+				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedMethodCalls", "NormalizedMethodCalls"))
+				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedMethodCalls"))
+				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedMethodCalls"))
+				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedMethodCalls"))
+				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("MethodCallFeatures", "TokenizedMethodCalls", numberOfTopics: 2))
+				.Append(mlContext.Transforms.Text.NormalizeText("NormalizedVariableNames", "variableNames"))
+				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedVariableNames", "NormalizedVariableNames"))
+				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedVariableNames"))
+				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedVariableNames"))
+				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedVariableNames"))
+				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("VariableNameFeatures", "TokenizedVariableNames", numberOfTopics: 2))
+				.Append(mlContext.Transforms.Concatenate("Features", "MethodFeatures", "ClassFeatures", "MethodCallFeatures", "VariableNameFeatures"));
+
+		Microsoft.ML.Data.TransformerChain<Microsoft.ML.Data.ColumnConcatenatingTransformer> transformer = pipeline.Fit(dataview);
+		PredictionEngine<Blueprint, TransformedBlueprint> predictionEngine = mlContext.Model.CreatePredictionEngine<Blueprint, TransformedBlueprint>(transformer);
+		
 		double[,] similarityMatrix = new double[blueprints.Count, blueprints.Count];
 		
 		for (int i = 0; i < blueprints.Count; i++)
 		{
 			for (int j = 0; j < blueprints.Count; j++)
 			{
-				MLContext mlContext = new MLContext();
-
-				IDataView dataview = mlContext.Data.LoadFromEnumerable(this.blueprints);
-
-				Microsoft.ML.Data.EstimatorChain<Microsoft.ML.Data.ColumnConcatenatingTransformer> pipeline = mlContext.Transforms.Text.NormalizeText("NormalizedMethodName", "methodName")
-						.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedMethodName", "NormalizedMethodName"))
-						.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedMethodName"))
-						.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedMethodName"))
-						.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedMethodName"))
-						.Append(mlContext.Transforms.Text.LatentDirichletAllocation("MethodFeatures", "TokenizedMethodName", numberOfTopics: 2))
-						.Append(mlContext.Transforms.Text.NormalizeText("NormalizedClassName", "className"))
-						.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedClassName", "NormalizedClassName"))
-						.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedClassName"))
-						.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedClassName"))
-						.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedClassName"))
-						.Append(mlContext.Transforms.Text.LatentDirichletAllocation("ClassFeatures", "TokenizedClassName", numberOfTopics: 2))
-						.Append(mlContext.Transforms.Text.NormalizeText("NormalizedMethodCalls", "methodCalls"))
-						.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedMethodCalls", "NormalizedMethodCalls"))
-						.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedMethodCalls"))
-						.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedMethodCalls"))
-						.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedMethodCalls"))
-						.Append(mlContext.Transforms.Text.LatentDirichletAllocation("MethodCallFeatures", "TokenizedMethodCalls", numberOfTopics: 2))
-						.Append(mlContext.Transforms.Text.NormalizeText("NormalizedVariableNames", "variableNames"))
-						.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedVariableNames", "NormalizedVariableNames"))
-						.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedVariableNames"))
-						.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedVariableNames"))
-						.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedVariableNames"))
-						.Append(mlContext.Transforms.Text.LatentDirichletAllocation("VariableNameFeatures", "TokenizedVariableNames", numberOfTopics: 2))
-						.Append(mlContext.Transforms.Concatenate("Features", "MethodFeatures", "ClassFeatures", "MethodCallFeatures", "VariableNameFeatures"));
-
-				Microsoft.ML.Data.TransformerChain<Microsoft.ML.Data.ColumnConcatenatingTransformer> transformer = pipeline.Fit(dataview);
-				PredictionEngine<Blueprint, TransformedBlueprint> predictionEngine = mlContext.Model.CreatePredictionEngine<Blueprint, TransformedBlueprint>(transformer);
-
 				// normalise feature vector to make them unit vectors
 				float bp1MethodFeature1 = predictionEngine.Predict(blueprints[i]).MethodFeatures[0];
 				float bp1MethodFeature2 = predictionEngine.Predict(blueprints[i]).MethodFeatures[1];
