@@ -48,6 +48,10 @@ class SemanticSimilarity
 		
 		for (int i = 0; i < blueprints.Count; i++)
 		{
+			if (i % 50 == 0)
+			{
+				Console.WriteLine($"Processing: {i} blueprints");
+			}
 			for (int j = 0; j < blueprints.Count; j++)
 			{
 				// normalise feature vector to make them unit vectors

@@ -20,6 +20,7 @@ class Kowalski
 	
 	public void Analysis(string folderPath)
 	{
+		Console.WriteLine("Performing static code analysis");
 		foreach (string filePath in Directory.EnumerateFiles(folderPath, "*.cs", SearchOption.AllDirectories))
 		{
 			string code = File.ReadAllText(filePath);
@@ -72,11 +73,13 @@ class Kowalski
 			pair.Value.RemoveAll(value => !methodDependency.ContainsKey(value));
 		}
 		
-		// calculate structural similarity
+		// compute structural similarity matrix
+		Console.WriteLine("Computing structural similarity matrix");
 		StructuralSimilarity structuralSimilarity = new StructuralSimilarity(methodList, methodDependency);
 		int[,] structuralSimilarityMatrix = structuralSimilarity.ComputeSimiarityMatrix();
 		
-		// calculate semantic similarity
+		// compute semantic similarity
+		Console.WriteLine("Computing semantic similarity matrix");
 		SemanticSimilarity semanticSimilarity = new SemanticSimilarity(blueprints);
 		double[,] semanticSimilarityMatrix = semanticSimilarity.ComputeSimilarityMatrix();
 		
