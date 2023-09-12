@@ -1,152 +1,139 @@
-using Microsoft.ML;
 namespace MoMi;
 class SemanticSimilarity
 {
-	private List<Blueprint> blueprints;
+	private List<string> data;
 	
-	public SemanticSimilarity(List<Blueprint> blueprints)
+	public SemanticSimilarity(List<string> data)
 	{
-		this.blueprints = blueprints;
+		this.data = data;
 	}
 	
 	public double[,] ComputeSimilarityMatrix()
 	{
-		MLContext mlContext = new MLContext();
-
-		IDataView dataview = mlContext.Data.LoadFromEnumerable(this.blueprints);
-
-		Microsoft.ML.Data.EstimatorChain<Microsoft.ML.Data.ColumnConcatenatingTransformer> pipeline = mlContext.Transforms.Text.NormalizeText("NormalizedMethodName", "methodName")
-				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedMethodName", "NormalizedMethodName"))
-				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedMethodName"))
-				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedMethodName"))
-				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedMethodName"))
-				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("MethodFeatures", "TokenizedMethodName", numberOfTopics: 2))
-				.Append(mlContext.Transforms.Text.NormalizeText("NormalizedClassName", "className"))
-				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedClassName", "NormalizedClassName"))
-				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedClassName"))
-				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedClassName"))
-				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedClassName"))
-				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("ClassFeatures", "TokenizedClassName", numberOfTopics: 2))
-				.Append(mlContext.Transforms.Text.NormalizeText("NormalizedMethodCalls", "methodCalls"))
-				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedMethodCalls", "NormalizedMethodCalls"))
-				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedMethodCalls"))
-				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedMethodCalls"))
-				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedMethodCalls"))
-				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("MethodCallFeatures", "TokenizedMethodCalls", numberOfTopics: 2))
-				.Append(mlContext.Transforms.Text.NormalizeText("NormalizedVariableNames", "variableNames"))
-				.Append(mlContext.Transforms.Text.TokenizeIntoWords("TokenizedVariableNames", "NormalizedVariableNames"))
-				.Append(mlContext.Transforms.Text.RemoveDefaultStopWords("TokenizedVariableNames"))
-				.Append(mlContext.Transforms.Conversion.MapValueToKey("TokenizedVariableNames"))
-				.Append(mlContext.Transforms.Text.ProduceNgrams("TokenizedVariableNames"))
-				.Append(mlContext.Transforms.Text.LatentDirichletAllocation("VariableNameFeatures", "TokenizedVariableNames", numberOfTopics: 2))
-				.Append(mlContext.Transforms.Concatenate("Features", "MethodFeatures", "ClassFeatures", "MethodCallFeatures", "VariableNameFeatures"));
-
-		Microsoft.ML.Data.TransformerChain<Microsoft.ML.Data.ColumnConcatenatingTransformer> transformer = pipeline.Fit(dataview);
-		PredictionEngine<Blueprint, TransformedBlueprint> predictionEngine = mlContext.Model.CreatePredictionEngine<Blueprint, TransformedBlueprint>(transformer);
+		int size = data.Count;
 		
-		double[,] similarityMatrix = new double[blueprints.Count, blueprints.Count];
-		
-		for (int i = 0; i < blueprints.Count; i++)
+		double[,] similarityMatrix = new double[size, size];
+		for (int i = 0; i < size; i++)
 		{
-			if (i % 50 == 0)
+			for (int j = 0; j < size; j++)
 			{
-				Console.WriteLine($"Processing: {i} blueprints");
-			}
-			for (int j = 0; j < blueprints.Count; j++)
-			{
-				// normalise feature vector to make them unit vectors
-				float bp1MethodFeature1 = predictionEngine.Predict(blueprints[i]).MethodFeatures[0];
-				float bp1MethodFeature2 = predictionEngine.Predict(blueprints[i]).MethodFeatures[1];
-				float bp1MethodFeature1Normalized = bp1MethodFeature1/(bp1MethodFeature1 + bp1MethodFeature2);
-				float bp1MethodFeature2Normalized = bp1MethodFeature2/(bp1MethodFeature1 + bp1MethodFeature2);
-				
-				float bp1ClassFeature1 = predictionEngine.Predict(blueprints[i]).ClassFeatures[0];
-				float bp1ClassFeature2 = predictionEngine.Predict(blueprints[i]).ClassFeatures[1];
-				float bp1ClassFeature1Normalized = bp1ClassFeature1/(bp1ClassFeature1 + bp1ClassFeature2);
-				float bp1ClassFeature2Normalized = bp1ClassFeature2/(bp1ClassFeature1 + bp1ClassFeature2);
-
-				float bp1MethodCallFeature1 = predictionEngine.Predict(blueprints[i]).MethodCallFeatures[0];
-				float bp1MethodCallFeature2 = predictionEngine.Predict(blueprints[i]).MethodCallFeatures[1];
-				float bp1MethodCallFeature1Normalized = bp1MethodCallFeature1/(bp1MethodCallFeature1 + bp1MethodCallFeature2);
-				float bp1MethodCallFeature2Normalized = bp1MethodCallFeature2/(bp1MethodCallFeature1 + bp1MethodCallFeature2);
-
-				float bp1VariableNameFeature1 = predictionEngine.Predict(blueprints[i]).VariableNameFeatures[0];
-				float bp1VariableNameFeature2 = predictionEngine.Predict(blueprints[i]).VariableNameFeatures[1];
-				float bp1VariableNameFeature1Normalized = bp1VariableNameFeature1/(bp1VariableNameFeature1 + bp1VariableNameFeature2);
-				float bp1VariableNameFeature2Normalized = bp1VariableNameFeature2/(bp1VariableNameFeature1 + bp1VariableNameFeature2);
-				
-				float bp2MethodFeature1 = predictionEngine.Predict(blueprints[j]).MethodFeatures[0];
-				float bp2MethodFeature2 = predictionEngine.Predict(blueprints[j]).MethodFeatures[1];
-				float bp2MethodFeature1Normalized = bp2MethodFeature1/(bp2MethodFeature1 + bp2MethodFeature2);
-				float bp2MethodFeature2Normalized = bp2MethodFeature2/(bp2MethodFeature1 + bp2MethodFeature2);
-
-				float bp2ClassFeature1 = predictionEngine.Predict(blueprints[j]).ClassFeatures[0];
-				float bp2ClassFeature2 = predictionEngine.Predict(blueprints[j]).ClassFeatures[1];
-				float bp2ClassFeature1Normalized = bp2ClassFeature1/(bp2ClassFeature1 + bp2ClassFeature2);
-				float bp2ClassFeature2Normalized = bp2ClassFeature2/(bp2ClassFeature1 + bp2ClassFeature2);
-
-				float bp2MethodCallFeature1 = predictionEngine.Predict(blueprints[j]).MethodCallFeatures[0];
-				float bp2MethodCallFeature2 = predictionEngine.Predict(blueprints[j]).MethodCallFeatures[1];
-				float bp2MethodCallFeature1Normalized = bp2MethodCallFeature1/(bp2MethodCallFeature1 + bp2MethodCallFeature2);
-				float bp2MethodCallFeature2Normalized = bp2MethodCallFeature2/(bp2MethodCallFeature1 + bp2MethodCallFeature2);
-				
-				float bp2VariableNameFeature1 = predictionEngine.Predict(blueprints[j]).VariableNameFeatures[0];
-				float bp2VariableNameFeature2 = predictionEngine.Predict(blueprints[j]).VariableNameFeatures[1];
-				float bp2VariableNameFeature1Normalized = bp2VariableNameFeature1/(bp2VariableNameFeature1 + bp2VariableNameFeature2);
-				float bp2VariableNameFeature2Normalized = bp2VariableNameFeature2/(bp2VariableNameFeature1 + bp2VariableNameFeature2);
-
-				// calculate dot product
-				float dotProductMethodFeature = (bp1MethodFeature1Normalized * bp2MethodFeature1Normalized) + (bp1MethodFeature2Normalized * bp2MethodFeature2Normalized);
-				float dotProductClassFeature = (bp1ClassFeature1Normalized * bp2ClassFeature1Normalized) + (bp1ClassFeature2Normalized * bp2ClassFeature2Normalized);
-				float dotProductMethodCallFeature = (bp1MethodCallFeature1Normalized * bp2MethodCallFeature1Normalized) + (bp1MethodCallFeature2Normalized * bp2MethodCallFeature2Normalized);
-				float dotProductVariableNameFeature = (bp1VariableNameFeature1Normalized * bp2VariableNameFeature1Normalized) + (bp1VariableNameFeature2Normalized * bp2VariableNameFeature2Normalized);
-
-				// calculate magnitude
-				double bp1MagnitudeMethodFeature = Math.Sqrt((bp1MethodFeature1Normalized * bp1MethodFeature1Normalized) + (bp1MethodFeature2Normalized * bp1MethodFeature2Normalized));
-				double bp2MagnitudeMethodFeature = Math.Sqrt((bp2MethodFeature1Normalized * bp2MethodFeature1Normalized) + (bp2MethodFeature2Normalized * bp2MethodFeature2Normalized));
-
-				double bp1MagnitudeClassFeature = Math.Sqrt((bp1ClassFeature1Normalized * bp1ClassFeature1Normalized) + (bp1ClassFeature2Normalized * bp1ClassFeature2Normalized));
-				double bp2MagnitudeClassFeature = Math.Sqrt((bp2ClassFeature1Normalized * bp2ClassFeature1Normalized) + (bp2ClassFeature2Normalized * bp2ClassFeature2Normalized));
-
-				double bp1MagnitudeMethodCallFeature = Math.Sqrt((bp1MethodCallFeature1Normalized * bp1MethodCallFeature1Normalized) + (bp1MethodCallFeature2Normalized * bp1MethodCallFeature2Normalized));
-				double bp2MagnitudeMethodCallFeature = Math.Sqrt((bp2MethodCallFeature1Normalized * bp2MethodCallFeature1Normalized) + (bp2MethodCallFeature2Normalized * bp2MethodCallFeature2Normalized));
-
-				double bp1MagnitudeVariableNameFeature = Math.Sqrt((bp1VariableNameFeature1Normalized * bp1VariableNameFeature1Normalized) + (bp1VariableNameFeature2Normalized * bp1VariableNameFeature2Normalized));
-				double bp2MagnitudeVariableNameFeature = Math.Sqrt((bp2VariableNameFeature1Normalized * bp2VariableNameFeature1Normalized) + (bp2VariableNameFeature2Normalized * bp2VariableNameFeature2Normalized));
-
-				// calculate cosine similarity
-				double cosineSimilarityMethodFeature = dotProductMethodFeature / (bp1MagnitudeMethodFeature * bp2MagnitudeMethodFeature);
-				if (double.IsNaN(cosineSimilarityMethodFeature))
-				{
-					cosineSimilarityMethodFeature = 0;
-				}
-				double cosineSimilarityClassFeature = dotProductClassFeature / (bp1MagnitudeClassFeature * bp2MagnitudeClassFeature);
-				if (double.IsNaN(cosineSimilarityClassFeature))
-				{
-					cosineSimilarityClassFeature = 0;
-				}
-				double cosineSimilarityMethodCallFeature = dotProductMethodCallFeature / (bp1MagnitudeMethodCallFeature * bp2MagnitudeMethodCallFeature);
-				if (double.IsNaN(cosineSimilarityMethodCallFeature))
-				{
-					cosineSimilarityMethodCallFeature = 0;
-				}
-				double cosineSimilarityVariableNameFeature = dotProductVariableNameFeature / (bp1MagnitudeVariableNameFeature * bp2MagnitudeVariableNameFeature);
-				if (double.IsNaN(cosineSimilarityVariableNameFeature))
-				{
-					cosineSimilarityVariableNameFeature = 0;
-				}
-
-				// average of cosine similarities
-				double similarity = (cosineSimilarityMethodFeature + cosineSimilarityClassFeature + cosineSimilarityMethodCallFeature + cosineSimilarityVariableNameFeature) / 4;
-				
-				similarityMatrix[i, j] = similarity;
-				similarityMatrix[j, i] = similarity;
+				double distance = ComputeLevenshteinDistance(data[i], data[j]);
+				// double distance = ComputeLongestCommonSubsequence(data[i], data[j]);
+				// double distance = ComputeJaccardSimilarity(data[i], data[j]);
+				// double distance = ComputeCosineSimilarity(data[i], data[j]);
+				similarityMatrix[i, j] = distance;
+				similarityMatrix[j, i] = distance;
 			}
 		}
 		
 		return similarityMatrix;
-	}	
+	}
 	
+	private double ComputeLevenshteinDistance(string s, string t)
+	{
+		double[,] distanceMatrix = new double[s.Length + 1, t.Length + 1];
+
+		for (int i = 0; i <= s.Length; i++)
+		{
+			distanceMatrix[i, 0] = i;
+		}
+
+		for (int j = 0; j <= t.Length; j++)
+		{
+			distanceMatrix[0, j] = j;
+		}
+
+		for (int j = 1; j <= t.Length; j++)
+		{
+			for (int i = 1; i <= s.Length; i++)
+			{
+				if (s[i - 1] == t[j - 1])
+				{
+					distanceMatrix[i, j] = distanceMatrix[i - 1, j - 1];
+				}
+				else
+				{
+					distanceMatrix[i, j] = Math.Min(Math.Min(distanceMatrix[i - 1, j] + 1, distanceMatrix[i, j - 1] + 1), distanceMatrix[i - 1, j - 1] + 1);
+				}
+			}
+		}
+
+		return distanceMatrix[s.Length, t.Length];
+	}
+	
+	private double ComputeLongestCommonSubsequence(string s, string t)
+	{
+		int m = s.Length;
+		int n = t.Length;
+
+		int[,] dp = new int[m + 1, n + 1];
+
+		for (int i = 0; i <= m; i++)
+		{
+			for (int j = 0; j <= n; j++)
+			{
+				if (i == 0 || j == 0)
+				{
+					dp[i, j] = 0;
+				}
+				else if (s[i - 1] == t[j - 1])
+				{
+					dp[i, j] = dp[i - 1, j - 1] + 1;
+				}
+				else
+				{
+					dp[i, j] = Math.Max(dp[i - 1, j], dp[i, j - 1]);
+				}
+			}
+		}
+
+		return dp[m, n];
+	}
+	
+	private double ComputeJaccardSimilarity(string s, string t)
+	{
+		HashSet<char> set1 = new HashSet<char>(s);
+		HashSet<char> set2 = new HashSet<char>(t);
+
+		int intersectionCount = set1.Intersect(set2).Count();
+		int unionCount = set1.Count + set2.Count - intersectionCount;
+
+		return (double)intersectionCount / unionCount;
+	}
+	
+	private double ComputeCosineSimilarity(string s, string t)
+	{
+		List<string> words1 = s.ToLower().Split(' ').ToList();
+		List<string> words2 = t.ToLower().Split(' ').ToList();
+
+		List<string> uniqueWords = words1.Union(words2).ToList();
+
+		int[] vector1 = new int[uniqueWords.Count];
+		int[] vector2 = new int[uniqueWords.Count];
+
+		for (int i = 0; i < uniqueWords.Count; i++)
+		{
+			vector1[i] = words1.Count(w => w == uniqueWords[i]);
+			vector2[i] = words2.Count(w => w == uniqueWords[i]);
+		}
+
+		double dotProduct = 0;
+		double magnitude1 = 0;
+		double magnitude2 = 0;
+
+		for (int i = 0; i < uniqueWords.Count; i++)
+		{
+			dotProduct += vector1[i] * vector2[i];
+			magnitude1 += Math.Pow(vector1[i], 2);
+			magnitude2 += Math.Pow(vector2[i], 2);
+		}
+
+		magnitude1 = Math.Sqrt(magnitude1);
+		magnitude2 = Math.Sqrt(magnitude2);
+
+		double cosineSimilarity = dotProduct / (magnitude1 * magnitude2);
+
+		return cosineSimilarity;
+	}
+
 }
-
-

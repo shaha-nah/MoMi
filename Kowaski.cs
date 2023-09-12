@@ -1,7 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace MoMi;
@@ -10,12 +9,14 @@ class Kowalski
 	private List<Blueprint> blueprints;
 	private List<string> methodList;
 	private Dictionary<string, List<string>> methodDependency;
+	private List<string> data;
 	
 	public Kowalski()
 	{
 		blueprints = new List<Blueprint>();
 		methodList = new List<string>();
 		methodDependency = new Dictionary<string, List<string>>();
+		data = new List<string>();
 	}
 	
 	public void Analysis(string folderPath)
@@ -59,6 +60,7 @@ class Kowalski
 					
 					Blueprint blueprint = new Blueprint(methodName, className, methodCalls, variables);
 					blueprints.Add(blueprint);
+					data.Add($"{methodName}, {className}, {methodCalls}, {variables}");
 				}
 			}
 		}
@@ -81,7 +83,7 @@ class Kowalski
 		
 		// compute semantic similarity
 		Console.WriteLine("Computing semantic similarity matrix");
-		SemanticSimilarity semanticSimilarity = new SemanticSimilarity(blueprints);
+		SemanticSimilarity semanticSimilarity = new SemanticSimilarity(data);
 		double[,] semanticSimilarityMatrix = semanticSimilarity.ComputeSimilarityMatrix();
 		
 		// weighted sum to get similarity
@@ -116,19 +118,9 @@ class Kowalski
 			}
 		}
 		
-		// generate distance matrix
-		double[,] distanceMatrix = new double[methodCount, methodCount];
-		for (int i = 0; i < methodCount; i++)
-		{
-			for (int j = 0; j < methodCount; j++)
-			{
-				distanceMatrix[i, j] = 1 - normalizedSimilarityMatrix[i, j];
-			}
-		}
-		
 		// generate clusters
 		Console.WriteLine("Clustering");
-		Dbscan dbscan = new Dbscan(distanceMatrix);
+		Dbscan dbscan = new Dbscan(normalizedSimilarityMatrix);
 		List<List<int>> clusters = dbscan.GenerateClusters();
 		
 		JObject clusterJson = new JObject();
@@ -136,6 +128,7 @@ class Kowalski
 		
 		foreach (var cluster in clusters)
 		{
+			Console.WriteLine(clusterIndex);
 			Cluster clusterItems = new Cluster();
 			
 			foreach (var index in cluster)

@@ -11,8 +11,19 @@ class Dbscan
 	public List<List<int>> GenerateClusters()
 	{
 		int minPts = 3;
-		double eps = 0.88;
-
+		double eps = 0.2;
+		
+		for (int i = 0; i < 10; i++)
+		{
+			for (double j = 0.1; j < 1; j = Math.Round(j + 0.1, 1))
+			{
+				List<List<int>> cluster = DBSCAN(distanceMatrix, i, j);
+				if (cluster.Count > 1)
+				{
+					Console.WriteLine($"{i}|{j}: {cluster.Count}");
+				}
+			}
+		}
 		List<List<int>> clusters = DBSCAN(distanceMatrix, minPts, eps);
 
 		return clusters;
@@ -75,6 +86,7 @@ class Dbscan
 
 		for (int i = 0; i < distanceMatrix.GetLength(0); i++)
 		{
+			// if (CalculateJaccardSimilarity(distanceMatrix, methodIndex, i) >= eps)
 			if (distanceMatrix[methodIndex, i] >= eps)
 			{
 				neighbors.Add(i);
@@ -82,5 +94,26 @@ class Dbscan
 		}
 
 		return neighbors;
+	}
+	
+	private double CalculateJaccardSimilarity(double[,] distanceMatrix, int methodIndex1, int methodIndex2)
+	{
+		double intersection = 0;
+		double union = 0;
+		
+		for (int i = 0; i < distanceMatrix.GetLength(1); i++)
+		{
+			if (distanceMatrix[methodIndex1, i] > 0 && distanceMatrix[methodIndex2, i] > 0)
+			{
+				intersection++;
+				union++;				
+			}
+			else if (distanceMatrix[methodIndex1, i] > 0 || distanceMatrix[methodIndex2, i] > 0)
+			{
+				union++;
+			}
+		}
+		
+		return intersection / union;
 	}
 }
