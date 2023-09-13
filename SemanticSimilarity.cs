@@ -17,7 +17,7 @@ class SemanticSimilarity
 		{
 			for (int j = 0; j < size; j++)
 			{
-				double distance = ComputeLevenshteinDistance(data[i], data[j]);
+				double distance = ComputeLevenshteinDistance(PreProcessData(data[i]), PreProcessData(data[j]));
 				// double distance = ComputeLongestCommonSubsequence(data[i], data[j]);
 				// double distance = ComputeJaccardSimilarity(data[i], data[j]);
 				// double distance = ComputeCosineSimilarity(data[i], data[j]);
@@ -27,6 +27,17 @@ class SemanticSimilarity
 		}
 		
 		return similarityMatrix;
+	}
+	
+	private string PreProcessData(string data)
+	{
+		string[] words = File.ReadAllLines("./StopWords.txt");
+		foreach (string word in words)
+		{
+			data = data.Replace(word, string.Empty, StringComparison.OrdinalIgnoreCase);
+		}
+		
+		return data;
 	}
 	
 	private double ComputeLevenshteinDistance(string s, string t)
