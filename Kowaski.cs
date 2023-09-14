@@ -40,6 +40,8 @@ class Kowalski
 				{
 					string methodName = method.Identifier.Text;
 					
+					List<string> parameters = method.DescendantNodes().OfType<ParameterSyntax>().Select(parameter => parameter.Identifier.ValueText.ToString()).ToList();
+					
 					List<string> invocationNodes = method.DescendantNodes().OfType<InvocationExpressionSyntax>().Select(invocations => invocations.Expression.ToString()).Select(expression => expression.Split('.').Last()).ToList();
 					string methodCalls = "";
 					foreach (var invocation in invocationNodes)
@@ -83,7 +85,7 @@ class Kowalski
 		
 		// compute semantic similarity
 		Console.WriteLine("Computing semantic similarity matrix");
-		SemanticSimilarity semanticSimilarity = new SemanticSimilarity(data);
+		SemanticSimilarity semanticSimilarity = new SemanticSimilarity(blueprints, data);
 		double[,] semanticSimilarityMatrix = semanticSimilarity.ComputeSimilarityMatrix();
 		
 		// weighted sum to get similarity
@@ -92,7 +94,8 @@ class Kowalski
 		{
 			for (int j = 0; j < methodCount; j++)
 			{
-				similarityMatrix[i, j] = (0.1 * structuralSimilarityMatrix[i, j]) + (0.9 * semanticSimilarityMatrix[i, j]);	
+				double similarityTotal = structuralSimilarityMatrix[i, j] + semanticSimilarityMatrix[i, j];
+				similarityMatrix[i, j] = (1 * (structuralSimilarityMatrix[i, j])) + (1 * (semanticSimilarityMatrix[i, j]));	
 			}
 		}
 		

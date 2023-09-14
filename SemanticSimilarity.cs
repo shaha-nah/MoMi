@@ -1,24 +1,30 @@
 namespace MoMi;
 class SemanticSimilarity
 {
+	private List<Blueprint> blueprints;
 	private List<string> data;
 	
-	public SemanticSimilarity(List<string> data)
+	public SemanticSimilarity(List<Blueprint> blueprints, List<string> data)
 	{
+		this.blueprints = blueprints;
 		this.data = data;
 	}
 	
 	public double[,] ComputeSimilarityMatrix()
 	{
 		int size = data.Count;
+		Console.WriteLine(size);
 		
 		double[,] similarityMatrix = new double[size, size];
 		for (int i = 0; i < size; i++)
 		{
 			for (int j = 0; j < size; j++)
 			{
-				double distance = ComputeLevenshteinDistance(PreProcessData(data[i]), PreProcessData(data[j]));
-				// double distance = ComputeLongestCommonSubsequence(data[i], data[j]);
+				//double distance = ComputeLevenshteinDistance(PreProcessData(data[i]), PreProcessData(data[j]));
+				double distanceData = ComputeLongestCommonSubsequence(PreProcessData(data[i]), PreProcessData(data[j]));
+				double distanceClass = ComputeLongestCommonSubsequence(PreProcessData(blueprints[i].className), PreProcessData(blueprints[j].className));
+				double distanceMethod = ComputeLongestCommonSubsequence(PreProcessData(blueprints[i].methodName), PreProcessData(blueprints[i].methodName));
+				double distance = distanceClass + distanceMethod + distanceData;
 				// double distance = ComputeJaccardSimilarity(data[i], data[j]);
 				// double distance = ComputeCosineSimilarity(data[i], data[j]);
 				similarityMatrix[i, j] = distance;
@@ -32,12 +38,14 @@ class SemanticSimilarity
 	private string PreProcessData(string data)
 	{
 		string[] words = File.ReadAllLines("./StopWords.txt");
+		string unprocessed = data;
 		foreach (string word in words)
 		{
-			data = data.Replace(word, string.Empty, StringComparison.OrdinalIgnoreCase);
+			string processedWord = word;
+			processedWord = word.Replace("\n", "").Replace("\r", "");
+			data = data.Replace(processedWord, "", StringComparison.OrdinalIgnoreCase);
 		}
-		
-		return data;
+		return unprocessed;
 	}
 	
 	private double ComputeLevenshteinDistance(string s, string t)
