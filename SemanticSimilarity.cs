@@ -38,14 +38,13 @@ class SemanticSimilarity
 	private string PreProcessData(string data)
 	{
 		string[] words = File.ReadAllLines("./StopWords.txt");
-		string unprocessed = data;
 		foreach (string word in words)
 		{
 			string processedWord = word;
 			processedWord = word.Replace("\n", "").Replace("\r", "");
 			data = data.Replace(processedWord, "", StringComparison.OrdinalIgnoreCase);
 		}
-		return unprocessed;
+		return data;
 	}
 	
 	private double ComputeLevenshteinDistance(string s, string t)
