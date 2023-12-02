@@ -1,6 +1,8 @@
+import clustering
 import json
+import numpy as np
 import processing
-import similarity
+import dummies # remove
 
 # Read data from json
 with open('./inputs/petclinic.json', 'r') as file:
@@ -49,27 +51,90 @@ for method_data in method_data_list:
 method_count = len(method_data_list)
 
 # Compute structural similarity matrices
-directed_graph_similarity_matrix = similarity.get_directed_graph_similarity_matrix(method_data_list)
-weighted_method_similarity_matrix = similarity.get_weighted_method_similarity_matrix(method_data_list, class_calls, class_info)
+# directed_graph_similarity_matrix = similarity.get_directed_graph_similarity_matrix(method_data_list)
+# weighted_method_similarity_matrix = similarity.weighted_directed_graph_similarity_matrix(method_count, method_data_list, class_calls)
+# Replace with precomputed values
+directed_graph_similarity_matrix = dummies.get_directed_graph_similarity_matrix()
+weighted_method_similarity_matrix = dummies.get_weighted_method_similarity_matrix()
+
+structural_matrices = [
+    directed_graph_similarity_matrix,
+    weighted_method_similarity_matrix
+]
+structural_matrices = [np.array(matrix) for matrix in structural_matrices]
 
 # Compute semantic similarity matrices
-preprocessed_method_data_list = []
+# preprocessed_method_data_list = []
 
-for item in method_data_list:
-    preprocessed_method_data = {
-        'MethodName': processing.preprocess_text(item['MethodName']),
-        'ClassName': processing.preprocess_text(item['ClassName']),
-        'MethodCalls': [processing.preprocess_text(call) for call in item['MethodCalls']],
-        'Variables': [processing.preprocess_text(var) for var in item['Variables']],
-        'Label': processing.preprocess_text(item['Label']),
-        'Parameters': [processing.preprocess_text(param) for param in item['Parameters']],
-        'MethodSourceCode': processing.preprocess_text(item['MethodSourceCode']),
-        'Comments': processing.preprocess_text(item['Comments'])
-    }
-    preprocessed_method_data_list.append(preprocessed_method_data)
+# for item in method_data_list:
+#     preprocessed_method_data = {
+#         'MethodName': processing.preprocess_text(item['MethodName']),
+#         'ClassName': processing.preprocess_text(item['ClassName']),
+#         'MethodCalls': [processing.preprocess_text(call) for call in item['MethodCalls']],
+#         'Variables': [processing.preprocess_text(var) for var in item['Variables']],
+#         'Label': processing.preprocess_text(item['Label']),
+#         'Parameters': [processing.preprocess_text(param) for param in item['Parameters']],
+#         'MethodSourceCode': processing.preprocess_text(item['MethodSourceCode']),
+#         'Comments': processing.preprocess_text(item['Comments'])
+#     }
+#     preprocessed_method_data_list.append(preprocessed_method_data)
 
-tfidf_similarity_matrix = similarity.get_tfidf_similarity_matrix(preprocessed_method_data_list)
-word2vec_similarity_matrix = similarity.get_word2vec_similarity_matrix(preprocessed_method_data_list)
-bert_similarity_matrix = similarity.get_bert_similarity_matrix(preprocessed_method_data_list)
-fasttext_similarity_matrix = similarity.get_fasttext_similarity_matrix(preprocessed_method_data_list)
-spacy_similarity_matrix = similarity.get_spacy_similarity_matrix(preprocessed_method_data_list)
+# word2vec_similarity_matrix = similarity.get_word2vec_similarity_matrix(preprocessed_method_data_list)
+# bert_similarity_matrix = similarity.get_bert_similarity_matrix(preprocessed_method_data_list)
+# fasttext_similarity_matrix = similarity.get_fasttext_similarity_matrix(preprocessed_method_data_list)
+
+# Replace with precomputed values
+word2vec_similarity_matrix = dummies.get_word2vec_similarity_matrix_euclidean()
+bert_similarity_matrix = dummies.get_bert_similarity_matrix_petclinic_euclidean()
+fasttext_similarity_matrix = dummies.get_fasttext_petclinic_euclidean()
+
+semantic_matrices = [
+    word2vec_similarity_matrix,
+    bert_similarity_matrix,
+    fasttext_similarity_matrix
+]
+semantic_matrices = [np.array(matrix) for matrix in semantic_matrices]
+
+# Find optimal weights
+structural_weights, semantic_weights, similarity_weight = processing.get_optimized_weights(structural_matrices, semantic_matrices, actual_labels, method_data_list)
+similarity_weights = [similarity_weight[0], 1 - similarity_weight[0]]
+
+print(structural_weights)
+print(semantic_weights)
+print(similarity_weights)
+
+# Compute weighted sums 
+structural_matrix = sum(weight * matrix for weight, matrix in zip(structural_weights, structural_matrices))
+semantic_matrix = sum(weight * matrix for weight, matrix in zip(semantic_weights, semantic_matrices))
+
+similarity_matrices = [ 
+    structural_matrix,
+    semantic_matrix
+]
+
+# Compute similarity matrix
+similarity_matrix = sum(weight * matrix for weight, matrix in zip(similarity_weights, similarity_matrices))
+similarity_matrix = processing.normalize_matrix(similarity_matrix)
+
+# Cluster the similarity matrix
+predicted_labels = clustering.spectral_clustering(similarity_matrix)
+
+# Compute precision
+precision = processing.calculate_precision(actual_labels, predicted_labels, method_data_list)
+print(precision)
+
+# Compute Structural Modularity
+structural_modularity = processing.calculate_structural_modularity(predicted_labels, method_data_list)
+print(structural_modularity)
+
+# Compute Interface Number
+interface_number = processing.calculate_interface_number(class_calls, method_data_list)
+print(interface_number)
+
+# Compute Non Extreme Distribution
+non_extreme_distribution = processing.calculate_non_extreme_distribution(method_data_list)
+print(non_extreme_distribution)
+
+# Compute Inter Call Percentage
+inter_call_percentage = processing.calculate_inter_call_percentage(class_calls, method_data_list)
+print(inter_call_percentage)

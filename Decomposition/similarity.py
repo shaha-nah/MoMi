@@ -1,10 +1,9 @@
+import fasttext
 import networkx as nx
 import numpy as np
 from gensim.models import Word2Vec
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import euclidean_distances
 from transformers import BertTokenizer, BertModel
-import spacy
 
 def get_directed_graph_similarity_matrix(method_data_list):
     G = nx.DiGraph()
@@ -47,33 +46,15 @@ def get_directed_graph_similarity_matrix(method_data_list):
 
     return np.array(directed_graph_similarity_matrix)
 
-def get_weighted_method_similarity_matrix(method_data_list, class_calls, class_info):
-    keys = list(class_calls.keys())
-    num_classes = len(keys)
-    class_similarity_matrix = np.zeros((num_classes, num_classes))
-
-    for i in range(num_classes):
-        for j in range(num_classes):
-            common_calls = set(class_calls[keys[i]].keys()) & set(class_calls[keys[j]].keys())
-            total_calls_i = sum(class_calls[keys[i]].values())
-            total_calls_j = sum(class_calls[keys[j]].values())
-
-            if total_calls_i != 0 and total_calls_j != 0:
-                class_similarity_matrix[i, j] = len(common_calls) / ((total_calls_i + total_calls_j) / 2)
-            else:
-                class_similarity_matrix[i, j] = 0
+def get_weighted_method_similarity_matrix(method_count, method_data_list, class_calls):
+    weighted_method_similarity_matrix = np.zeros((method_count, method_count))
 
     # Extract unique classes from class_calls
     unique_classes = list(class_calls.keys())
 
-    # Initialize weighted_method_similarity_matrix with zeros
-    method_count = len(method_data_list)
-    weighted_method_similarity_matrix = np.zeros((method_count, method_count))
-
     # Create a dictionary to map class names to their indices in unique_classes
     class_index_map = {class_name: index for index, class_name in enumerate(unique_classes)}
 
-    # Fill the weighted_method_similarity_matrix using class_similarity_matrix
     for i in range(method_count):
         for j in range(method_count):
             class_i = method_data_list[i]['ClassName']
@@ -83,62 +64,24 @@ def get_weighted_method_similarity_matrix(method_data_list, class_calls, class_i
             index_i = class_index_map[class_i]
             index_j = class_index_map[class_j]
 
-            # Assign the similarity value from class_similarity_matrix
-            weighted_method_similarity_matrix[i, j] = class_similarity_matrix[index_i, index_j]
+            common_calls = set(class_calls[unique_classes[index_i]].keys()) & set(class_calls[unique_classes[index_j]].keys())
+            total_calls_i = sum(class_calls[unique_classes[index_i]].values())
+            total_calls_j = sum(class_calls[unique_classes[index_j]].values())
 
-    np.set_printoptions(threshold=np.inf, precision=2, suppress=True)
+            if total_calls_i != 0 and total_calls_j != 0:
+                weighted_method_similarity_matrix[i, j] = len(common_calls) / ((total_calls_i + total_calls_j) / 2)
+            else:
+                weighted_method_similarity_matrix[i, j] = 0
 
-    # Print the entire matrix in the desired format
-    print("[", end="")
-    for row in weighted_method_similarity_matrix:
         print("[", end="")
-        for value in row:
-            print(f"{value:.2f}, ", end="")
-        print("],")
-    print("]")
-
-    # Reset printing options to default
-    np.set_printoptions()
+        for row in weighted_method_similarity_matrix:
+            print("[", end="")
+            for value in row:
+                print(f"{value:.2f}, ", end="")
+            print("],")
+        print("]")
 
     return np.array(weighted_method_similarity_matrix)
-
-#######################################################################################
-################################# Semantic similarity #################################
-#######################################################################################
-
-def get_tfidf_similarity_matrix(method_data_list):
-    # Concatenate all relevant information for each method into a single string
-    method_info = [" ".join([
-        item['MethodName'],
-        item['ClassName'],
-        " ".join(item['MethodCalls']),
-        " ".join(item['Variables']),
-        item['Label'],
-        " ".join(item['Parameters']),
-        item['MethodSourceCode'],
-        item['Comments']
-    ]) for item in method_data_list]
-
-    # Use TF-IDF vectorization
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(method_info)
-
-    # Calculate cosine similarity
-    tfidf_similarity_matrix = cosine_similarity(tfidf_matrix)
-
-    # Print the entire matrix in the desired format (optional)
-    print("[", end="")
-    for row in tfidf_similarity_matrix:
-        print("[", end="")
-        for value in row:
-            print(f"{value:.2f}, ", end="")
-        print("],")
-    print("]")
-
-    # Reset printing options to default
-    np.set_printoptions()
-
-    return tfidf_similarity_matrix
 
 def get_word2vec_similarity_matrix(method_data_list, vector_size=100, window=5, min_count=1, epochs=10):
     method_info_list = [" ".join([
@@ -161,7 +104,9 @@ def get_word2vec_similarity_matrix(method_data_list, vector_size=100, window=5, 
             vec1 = np.mean([model.wv[word] for word in method_info_list[i] if word in model.wv], axis=0)
             vec2 = np.mean([model.wv[word] for word in method_info_list[j] if word in model.wv], axis=0)
             
-            similarity = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+            intersection_size = len(set(vec1.nonzero()[0]).intersection(set(vec2.nonzero()[0])))
+            union_size = len(set(vec1.nonzero()[0]).union(set(vec2.nonzero()[0])))
+            similarity = intersection_size / union_size if union_size != 0 else 0
             
             word2vec_similarity_matrix[i, j] = word2vec_similarity_matrix[j, i] = similarity
 
@@ -188,19 +133,19 @@ def get_bert_similarity_matrix(method_data_list):
     method_info_list = [" ".join([
         item['MethodName'],
         item['ClassName']
-        # " ".join(item['MethodCalls']),
-        # " ".join(item['Variables']),
-        # item['Label'],
-        # " ".join(item['Parameters']),
-        # item['MethodSourceCode'],
-        # item['Comments']
+        " ".join(item['MethodCalls']),
+        " ".join(item['Variables']),
+        item['Label'],
+        " ".join(item['Parameters']),
+        item['MethodSourceCode'],
+        item['Comments']
     ]) for item in method_data_list]
 
     encoded_inputs = tokenizer(method_info_list, return_tensors='pt', padding=True, truncation=True)
     outputs = model(**encoded_inputs)
 
     embeddings = outputs.last_hidden_state.mean(dim=1)  # Use mean pooling for simplicity
-    bert_similarity_matrix = cosine_similarity(embeddings.detach().numpy())
+    bert_similarity_matrix = euclidean_distances(embeddings.detach().numpy())
 
     np.set_printoptions(threshold=np.inf, precision=2, suppress=True)
 
@@ -224,18 +169,18 @@ def get_fasttext_similarity_matrix(method_data_list, model_path='cc.en.300.bin')
     method_info = [" ".join([
         item['MethodName'],
         item['ClassName']
-        # " ".join(item['MethodCalls']),
-        # " ".join(item['Variables']),
-        # item['Label'],
-        # " ".join(item['Parameters']),
-        # item['MethodSourceCode'],
-        # item['Comments']
+        " ".join(item['MethodCalls']),
+        " ".join(item['Variables']),
+        item['Label'],
+        " ".join(item['Parameters']),
+        item['MethodSourceCode'],
+        item['Comments']
     ]) for item in method_data_list]
 
     method_vectors = np.array([model.get_sentence_vector(text) for text in method_info])
 
     # Calculate pairwise cosine similarity
-    fasttext_similarity_matrix = cosine_similarity(method_vectors)
+    fasttext_similarity_matrix = euclidean_distances(method_vectors)
 
     print("[", end="")
     for row in fasttext_similarity_matrix:
@@ -246,38 +191,3 @@ def get_fasttext_similarity_matrix(method_data_list, model_path='cc.en.300.bin')
     print("]")
 
     return fasttext_similarity_matrix
-
-def get_spacy_similarity_matrix(method_data_list):
-    method_count = len(method_data_list)
-    spacy_similarity_matrix = np.zeros((method_count, method_count))
-    nlp = spacy.load('en_core_web_md')
-
-    method_info_list = [" ".join([
-        item['MethodName'],
-        item['ClassName'],
-        " ".join(item['MethodCalls']),
-        " ".join(item['Variables']),
-        item['Label'],
-        " ".join(item['Parameters']),
-        item['MethodSourceCode'],
-        item['Comments']
-    ]) for item in method_data_list]
-
-    for i in range(method_count):
-        for j in range(i, method_count):
-            doc_i = nlp(method_info_list[i])
-            doc_j = nlp(method_info_list[j])
-
-            similarity_score = doc_i.similarity(doc_j)
-            spacy_similarity_matrix[i, j] = similarity_score
-            spacy_similarity_matrix[j, i] = similarity_score
-
-    print("[", end="")
-    for row in spacy_similarity_matrix:
-        print("[", end="")
-        for value in row:
-            print(f"{value:.2f}, ", end="")
-        print("],")
-    print("]")
-    
-    return spacy_similarity_matrix
