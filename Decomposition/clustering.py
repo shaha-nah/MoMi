@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.cluster import SpectralClustering
+from sklearn.cluster import DBSCAN, AffinityPropagation, MeanShift, SpectralClustering
 from sklearn.decomposition import PCA
 from sklearn.exceptions import DataConversionWarning
 from sklearn.metrics import silhouette_score
@@ -125,3 +125,56 @@ def spectral_clustering_elbow_method(affinity_matrix, n_init=100):
         predicted_labels = spectral.fit_predict(affinity_matrix)
 
     return predicted_labels
+
+def dbscan_clustering(similarity_matrix, max_iterations=10):
+    distance_matrix = np.maximum(0, 1 - np.array(similarity_matrix))
+    np.fill_diagonal(distance_matrix, 0)
+
+    best_clusters = None
+    best_silhouette = -1
+
+    for _ in range(max_iterations):
+        silhouette_scores = []
+        eps_values = np.arange(0.1, 1.0, 0.1)
+        min_samples_values = range(2, 10)
+
+        for eps_val in eps_values:
+            for min_samples_val in min_samples_values:
+                dbscan = DBSCAN(eps=eps_val, min_samples=min_samples_val, metric='precomputed')
+                clusters = dbscan.fit_predict(distance_matrix)
+
+                # Check if there is a reasonable number of labels assigned by DBSCAN
+                unique_labels = np.unique(clusters)
+                if len(unique_labels) > 1:
+                    silhouette = silhouette_score(distance_matrix, clusters, metric='precomputed')
+                    silhouette_scores.append((eps_val, min_samples_val, silhouette))
+
+        if not silhouette_scores:
+            raise ValueError("DBSCAN failed to find a suitable solution. Adjust parameters or use a different method.")
+
+        # Relax constraints by considering cases where len(unique_labels) is greater than 1
+        optimal_params = max(silhouette_scores, key=lambda x: x[2])
+        optimal_eps, optimal_min_samples, optimal_silhouette = optimal_params
+
+        if optimal_silhouette > best_silhouette:
+            best_silhouette = optimal_silhouette
+            dbscan = DBSCAN(eps=optimal_eps, min_samples=optimal_min_samples, metric='precomputed')
+            best_clusters = dbscan.fit_predict(distance_matrix)
+
+    if best_clusters is None:
+        raise ValueError(f"DBSCAN failed to find a suitable solution after {max_iterations} iterations. Adjust parameters or use a different method.")
+
+    return best_clusters
+
+def mean_shift_clustering(similarity_matrix):
+    distance_matrix = np.maximum(0, 1 - np.array(similarity_matrix))
+    np.fill_diagonal(distance_matrix, 0)
+
+    clustering = MeanShift().fit(distance_matrix)
+    labels = clustering.labels_
+    return labels
+
+def affinity_propagation_clustering(similarity_matrix, damping=0.9):
+    affinity_propagation = AffinityPropagation(affinity='precomputed', damping=damping)
+    labels = affinity_propagation.fit_predict(similarity_matrix)
+    return labels
