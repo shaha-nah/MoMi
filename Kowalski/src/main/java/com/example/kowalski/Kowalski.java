@@ -4,6 +4,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,26 +29,25 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 public class Kowalski 
 {
-    public static void main( String[] args )
-    {
+    public static void main(String[] args) {
+        // Read projectFolderPath from the file
+        String projectFolderPath = readProjectFolderPathFromFile();
 
-        String[] projectFolderPaths = {
-            "/media/shahanah/4311F5B9262F01CF1/MSc Software Project Management/Dissertation/code/MoMi/Population/spring-petclinic-microservices",
-            "/media/shahanah/4311F5B9262F01CF1/MSc Software Project Management/Dissertation/code/MoMi/Population/microservices-event-sourcing",
-            "/media/shahanah/4311F5B9262F01CF1/MSc Software Project Management/Dissertation/code/MoMi/Population/es-kanban-board/java-server"
-        };
-    
-        String[] jsonFilePaths = {
-            "/media/shahanah/4311F5B9262F01CF1/MSc Software Project Management/Dissertation/code/MoMi/Decomposition/inputs/petclinic.json",
-            "/media/shahanah/4311F5B9262F01CF1/MSc Software Project Management/Dissertation/code/MoMi/Decomposition/inputs/event.json",
-            "/media/shahanah/4311F5B9262F01CF1/MSc Software Project Management/Dissertation/code/MoMi/Decomposition/inputs/kanban.json"
-        };
-    
-        for (int i = 0; i < projectFolderPaths.length; i++) {
-            analysis(projectFolderPaths[i], jsonFilePaths[i]);
+        String modifiedFolderPath = projectFolderPath.replace("/Population/", "/Decomposition/inputs/");
+        String jsonFilePath = modifiedFolderPath + ".json";
+
+        analysis(projectFolderPath, jsonFilePath);
+
+        System.out.println("Analysis Complete");
+    }
+
+    private static String readProjectFolderPathFromFile() {
+        try {
+            return new String(Files.readAllBytes(Paths.get("/tmp/projectFolderPath.txt"))).trim();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "";
         }
-
-        System.out.println( "Analysis Complete");
     }
 
     private static void analysis(String projectFolderPath, String outputFileName){
@@ -55,7 +56,7 @@ public class Kowalski
                 new SuffixFileFilter(".java"),
                 DirectoryFileFilter.DIRECTORY
         );
-        List outputData = new ArrayList<>();
+        List<JSONObject> outputData = new ArrayList<>();
 
         for (File javaFile : javaFiles) {
             ParseResult<CompilationUnit> result;
@@ -170,18 +171,18 @@ public class Kowalski
     }
 
     private static List<String> extractASTFeatures(MethodDeclaration methodDeclaration) {
-        final List<String>[] astFeatures = new List[]{new ArrayList<>()};
+        final List<String> astFeatures = new ArrayList<>();
     
         methodDeclaration.accept(new VoidVisitorAdapter<Void>() {
             @Override
             public void visit(MethodDeclaration node, Void arg) {
                 // Add node information to AST features
-                astFeatures[0].add(node.getClass().getSimpleName());
+                astFeatures.add(node.getClass().getSimpleName());
                 super.visit(node, arg);
             }
         }, null);
     
-        return astFeatures[0];
+        return astFeatures;
     }
 
 }
