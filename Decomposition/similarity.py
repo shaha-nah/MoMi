@@ -3,7 +3,7 @@ import networkx as nx
 import numpy as np
 from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import euclidean_distances, cosine_similarity, pairwise_distances
-from scipy.spatial.distance import cosine, , correlation, cityblock
+from scipy.spatial.distance import cosine, correlation, cityblock
 
 def get_directed_graph_similarity_matrix(method_data_list):
     # Create a directed graph   
