@@ -2,16 +2,23 @@ import clustering
 import json
 import numpy as np
 import processing
-import dummies # remove
+import similarity
+import dummies
+import sys
+
+if len(sys.argv) != 2:
+    print("Usage: python momi.py <jsonFilePath>")
+    sys.exit(1)
+
+jsonFilePath = sys.argv[1]
 
 # Read data from json
-with open('./inputs/petclinic.json', 'r') as file:
+with open(jsonFilePath, 'r') as file:
     data = json.load(file)
 
 # Extract dataset from json
 method_data_list = []
 label_set = set()
-class_info = []
 class_calls = {}
 
 for item in data['Data']:
@@ -35,8 +42,6 @@ for item in data['Data']:
                              })
     label_set.add(label)
 
-    class_info.append(data)
-
     # Add method calls to class_calls dictionary
     if class_name not in class_calls:
         class_calls[class_name] = {}
@@ -52,7 +57,7 @@ method_count = len(method_data_list)
 
 # Compute structural similarity matrices
 # directed_graph_similarity_matrix = similarity.get_directed_graph_similarity_matrix(method_data_list)
-# weighted_method_similarity_matrix = similarity.weighted_directed_graph_similarity_matrix(method_count, method_data_list, class_calls)
+# weighted_method_similarity_matrix = similarity.weighted_directed_graph_similarity_matrix(method_count, method_data_list)
 # Replace with precomputed values
 directed_graph_similarity_matrix = dummies.get_directed_graph_similarity_matrix()
 weighted_method_similarity_matrix = dummies.get_weighted_method_similarity_matrix()
@@ -64,20 +69,20 @@ structural_matrices = [
 structural_matrices = [np.array(matrix) for matrix in structural_matrices]
 
 # Compute semantic similarity matrices
-# preprocessed_method_data_list = []
+preprocessed_method_data_list = []
 
-# for item in method_data_list:
-#     preprocessed_method_data = {
-#         'MethodName': processing.preprocess_text(item['MethodName']),
-#         'ClassName': processing.preprocess_text(item['ClassName']),
-#         'MethodCalls': [processing.preprocess_text(call) for call in item['MethodCalls']],
-#         'Variables': [processing.preprocess_text(var) for var in item['Variables']],
-#         'Label': processing.preprocess_text(item['Label']),
-#         'Parameters': [processing.preprocess_text(param) for param in item['Parameters']],
-#         'MethodSourceCode': processing.preprocess_text(item['MethodSourceCode']),
-#         'Comments': processing.preprocess_text(item['Comments'])
-#     }
-#     preprocessed_method_data_list.append(preprocessed_method_data)
+for item in method_data_list:
+    preprocessed_method_data = {
+        'MethodName': processing.preprocess_text(item['MethodName']),
+        'ClassName': processing.preprocess_text(item['ClassName']),
+        'MethodCalls': [processing.preprocess_text(call) for call in item['MethodCalls']],
+        'Variables': [processing.preprocess_text(var) for var in item['Variables']],
+        'Label': processing.preprocess_text(item['Label']),
+        'Parameters': [processing.preprocess_text(param) for param in item['Parameters']],
+        'MethodSourceCode': processing.preprocess_text(item['MethodSourceCode']),
+        'Comments': processing.preprocess_text(item['Comments'])
+    }
+    preprocessed_method_data_list.append(preprocessed_method_data)
 
 # word2vec_similarity_matrix = similarity.get_word2vec_similarity_matrix(preprocessed_method_data_list)
 # bert_similarity_matrix = similarity.get_bert_similarity_matrix(preprocessed_method_data_list)
@@ -96,12 +101,8 @@ semantic_matrices = [
 semantic_matrices = [np.array(matrix) for matrix in semantic_matrices]
 
 # Find optimal weights
-structural_weights, semantic_weights, similarity_weight = processing.get_optimized_weights(structural_matrices, semantic_matrices, actual_labels, method_data_list)
+structural_weights, semantic_weights, similarity_weight = processing.get_optimized_weights(structural_matrices, semantic_matrices, actual_labels, method_data_list, 'SpectralClustering')
 similarity_weights = [similarity_weight[0], 1 - similarity_weight[0]]
-
-print(structural_weights)
-print(semantic_weights)
-print(similarity_weights)
 
 # Compute weighted sums 
 structural_matrix = sum(weight * matrix for weight, matrix in zip(structural_weights, structural_matrices))
@@ -118,6 +119,7 @@ similarity_matrix = processing.normalize_matrix(similarity_matrix)
 
 # Cluster the similarity matrix
 predicted_labels = clustering.spectral_clustering(similarity_matrix)
+processing.print_methods_by_labels(method_data_list, predicted_labels, jsonFilePath)
 
 # Compute precision
 precision = processing.calculate_precision(actual_labels, predicted_labels, method_data_list)

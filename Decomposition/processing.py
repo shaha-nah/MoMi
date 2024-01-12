@@ -1,13 +1,12 @@
-import clustering
+import json
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 import nltk
 import numpy as np
-from pyswarm import pso
-from random import uniform
 from scipy.optimize import minimize
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import adjusted_rand_score
+from clustering import DBSCAN, MeanShift, AffinityPropagation, SpectralClustering
+import os
 
 def preprocess_text(text):
     stop_words = set(stopwords.words('english'))
@@ -157,75 +156,34 @@ def calculate_precision(actual_labels, predicted_labels, method_data_list):
     precision = precision_sum / len(unique_actual_labels)
     return precision
 
-def print_methods_by_labels(method_data_list, labels):
-    unique_labels = set(labels)
+def print_methods_by_labels(method_data_list, labels, jsonFilePath):
+    unique_labels = set(map(str, labels))  # Convert labels to strings
+
+    result_data = {label: [] for label in unique_labels}
 
     for label in unique_labels:
-        print(f"Methods for Label {label}:")
-        label_indices = [i for i, x in enumerate(labels) if x == label]
+        label_indices = [i for i, x in enumerate(labels) if str(x) == label]
 
         for index in label_indices:
             method_data = method_data_list[index]
             method_name = method_data['MethodName']
             class_name = method_data['ClassName']
-            print(f"  Class: {class_name}, Method: {method_name}")
 
-        print("\n")
+            # Add data to the result_data dictionary
+            result_data[str(label)].append({'Class': class_name, 'Method': method_name})
 
-def get_optimized_weights_pyswarm(structural_matrices, semantic_matrices, actual_labels, method_data_list):
-    # Objective function to minimize
-    def objective_function(weights, structural_matrices, semantic_matrices, actual_labels, method_data_list):
-        structural_weights, semantic_weights, similarity_weight = np.split(weights, [len(structural_matrices), len(structural_matrices) + len(semantic_matrices)])
-    
-        structural_matrix = sum(weight * matrix for weight, matrix in zip(structural_weights, structural_matrices))
-        semantic_matrix = sum(weight * matrix for weight, matrix in zip(semantic_weights, semantic_matrices))
-    
-        similarity_matrix = similarity_weight * structural_matrix + (1 - similarity_weight) * semantic_matrix
-    
-        # Impute NaN values
-        imputer = SimpleImputer(strategy='constant', fill_value=0)
-        similarity_matrix = imputer.fit_transform(similarity_matrix) 
-    
-        # Check for NaN values after imputation
-        if np.isnan(similarity_matrix).any():
-            print("NaN values still present after imputation. Check the imputation strategy.")
-            return 1  # Return a high objective value to indicate failure
-    
-        # Check for infinite values and replace them with a large number
-        structural_matrix[~np.isfinite(structural_matrix)] = 1e6
-        semantic_matrix[~np.isfinite(semantic_matrix)] = 1e6
+    # Derive jsonOutput file path using string manipulation
+    jsonOutput = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(jsonFilePath))),  # Go up three levels (../../)
+        "Microservices",                                  # Append the "Microservices" folder
+        os.path.basename(jsonFilePath)                    # Keep the original filename
+    )
 
-        # Normalize matrices
-        structural_matrix = normalize_matrix(structural_matrix)
-        semantic_matrix = normalize_matrix(semantic_matrix)
+    # Write the result_data to a JSON file
+    with open(jsonOutput, 'w') as output_file:
+        json.dump(result_data, output_file, indent=2)
 
-        # Check for NaN values after normalization
-        if np.isnan(structural_matrix).any() or np.isnan(semantic_matrix).any():
-            print("NaN values still present after normalization. Check the matrices.")
-            return 1  # Return a high objective value to indicate failure
-
-        # Assuming everything went well, return the objective value
-        precision = calculate_precision(actual_labels, clustering.spectral_clustering(similarity_matrix), method_data_list)
-        return -precision  # Minimize the negative of precision
-
-    # Initial guess for weights
-    initial_weights = np.concatenate([0.5 * np.ones(len(structural_matrices)), 0.5 * np.ones(len(semantic_matrices)), [0.5]])
-
-    # Length of the bounds
-    n_weights = len(initial_weights)
-
-    # Bounds for each weight
-    lb = [0] * n_weights
-    ub = [1] * n_weights
-
-    # Run PSO
-    best_weights, _ = pso(objective_function, lb, ub, swarmsize=10, maxiter=50, args=(structural_matrices, semantic_matrices, actual_labels, method_data_list))
-
-    # Extract individual weights
-    structural_weights, semantic_weights, similarity_weight = np.split(best_weights, [len(structural_matrices), len(structural_matrices) + len(semantic_matrices)])
-    return structural_weights, semantic_weights, similarity_weight
-
-def objective_function(weights, structural_matrices, semantic_matrices, actual_labels, method_data_list):
+def objective_function(weights, structural_matrices, semantic_matrices, actual_labels, method_data_list, clustering_algorithm):
     structural_weights, semantic_weights, similarity_weight = np.split(weights, [len(structural_matrices), len(structural_matrices) + len(semantic_matrices)])
     
     structural_matrix = sum(weight * matrix for weight, matrix in zip(structural_weights, structural_matrices))
@@ -255,14 +213,27 @@ def objective_function(weights, structural_matrices, semantic_matrices, actual_l
         print("NaN values still present after normalization. Check the matrices.")
         return 1  # Return a high objective value to indicate failure
 
-    # Assuming everything went well, return the objective value
-    precision = calculate_precision(actual_labels, clustering.spectral_clustering(similarity_matrix), method_data_list)
+    # Assuming everything went well, perform clustering based on the specified algorithm
+    if clustering_algorithm == 'DBSCAN':
+        clusterer = DBSCAN()
+    elif clustering_algorithm == 'MeanShift':
+        clusterer = MeanShift()
+    elif clustering_algorithm == 'AffinityPropagation':
+        clusterer = AffinityPropagation()
+    elif clustering_algorithm == 'SpectralClustering':
+        clusterer = SpectralClustering()
+    else:
+        print("Unknown clustering algorithm: {clustering_algorithm}")
+        return 1 # Return a high objective value to indicate failure
+    
+    predicted_labels = clusterer.fit_predict(similarity_matrix)
+    precision = calculate_precision(actual_labels, predicted_labels, method_data_list)
     return -precision  # Minimize the negative of precision
 
-def get_optimized_weights(structural_matrices, semantic_matrices, actual_labels, method_data_list):
+def get_optimized_weights(structural_matrices, semantic_matrices, actual_labels, method_data_list, clustering_algorithm):
     # Objective function wrapper for Nelder-Mead
     def objective_function_nm(weights, structural_matrices, semantic_matrices, actual_labels, method_data_list):
-        return -objective_function(weights, structural_matrices, semantic_matrices, actual_labels, method_data_list)
+        return -objective_function(weights, structural_matrices, semantic_matrices, actual_labels, method_data_list, clustering_algorithm)
 
     # Initial guess for weights
     initial_weights = np.concatenate([0.5 * np.ones(len(structural_matrices)), 0.5 * np.ones(len(semantic_matrices)), [0.5]])
